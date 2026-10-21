@@ -315,13 +315,20 @@ dl.kvs dt{color:var(--muted)} dl.kvs dd{margin:0}
 .payslip .ph{display:flex;justify-content:space-between;gap:10px;border-bottom:2px solid var(--primary);padding-bottom:10px;margin-bottom:10px;flex-wrap:wrap}
 .screen-index{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
 .screen-index a{display:block;padding:4px 0;cursor:pointer;font-size:.9rem}
+.flow{display:flex;align-items:stretch;gap:6px;overflow-x:auto;padding-bottom:4px}
+.flow-step{flex:1 0 110px;display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:10px;background:var(--surface-2);color:var(--fg);text-decoration:none;font-size:.86rem;min-height:44px}
+.flow-step:hover{background:color-mix(in oklab,var(--secondary) 22%,var(--surface-2))}
+.flow-step .ico{color:var(--link)}
+.flow-arrow{align-self:center;color:var(--muted);flex:none}
+@media (max-width:767px){.flow{display:grid;grid-template-columns:1fr 1fr;gap:8px;overflow:visible}.flow-step{flex:none}.flow-arrow{display:none}}
+.screen-index a{display:block}
 .empty{text-align:center;padding:30px 16px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:10px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
-<div id="app"></div>
-<script>
+<div id="app"></div><script>
 /* ================= TAMIL MESSAGES (keyed by English; glossary per spec §18.5.3) ================= */
 const TA = {
+"draft":"வரைவு","active":"நடப்பில்","open":"திறந்தவை","on the road":"வழியில்","How work flows":"வேலை எப்படி நகர்கிறது","Tap a step to open it":"திறக்க ஒரு படியைத் தொடுங்கள்","Buy":"வாங்குதல்","Dye":"சாயம்","Weave":"நெசவு","QC & stock":"தரச் சோதனை & இருப்பு","Pack & dispatch":"பேக்கிங் & அனுப்புதல்","Get paid":"பணம் வசூல்","Run the business":"வணிகம் நடத்த","Home":"முகப்பு","Owner only":"உரிமையாளருக்கு மட்டும்","Raw materials & lots":"மூலப்பொருட்கள் & லாட்கள்","Movements":"நகர்வுகள்","Packing & dispatch":"பேக்கிங் & அனுப்புதல்","Invoices & payments":"விலைப்பட்டியல் & பணம்","Dispatch board":"அனுப்புதல் பலகை","Ready to pack":"பேக் செய்யத் தயார்","Payments received":"பெற்ற பணம்","Advances & fines":"முன்பணம் & அபராதம்","Profit & cash":"லாபம் & பணம்","Sales & receivables":"விற்பனை & வர வேண்டியவை","Team & access":"குழு & அனுமதி","Monthly salary":"மாதச் சம்பளம்",
 "Sign in":"உள்நுழை","Email or phone":"மின்னஞ்சல் அல்லது தொலைபேசி","Password":"கடவுச்சொல்","Keep me signed in on this device":"இந்தச் சாதனத்தில் உள்நுழைந்தே இரு","Forgot password?":"கடவுச்சொல் மறந்துவிட்டதா?","Sign in as (prototype)":"இவ்வாறு உள்நுழை (முன்மாதிரி)",
 "Admin":"நிர்வாகி","Staff":"பணியாளர்","Auditor":"தணிக்கையாளர்","New to SareeOps?":"SareeOps-க்கு புதியவரா?","Register your business":"உங்கள் வணிகத்தைப் பதிவு செய்யுங்கள்",
 "Sessions end after 30 minutes of inactivity. Signing out clears this device completely.":"30 நிமிடம் செயலற்று இருந்தால் அமர்வு முடியும். வெளியேறும்போது இந்தச் சாதனத் தரவு முழுவதும் அழிக்கப்படும்.",
@@ -756,7 +763,9 @@ const thumb = vc => { const { c, b, des } = V(vc); return `<div class="thumb">${
 /* ---------- small components ---------- */
 const btn = (label, attrs = "", cls = "") => `<button class="btn ${cls}" ${attrs}>${label}</button>`;
 const goA = (route, id) => `data-go="${route}"${id ? ` data-id="${esc(id)}"` : ""}`;
+let HUB = null; // when a page renders inside a hub tab, the hub owns the title and tabs
 function page({ title, crumbs = [], actions = "", body = "", sub = "" }) {
+  if (HUB) { if (HUB.actions.includes("primary main")) actions = actions.replaceAll("primary main", "primary"); HUB.actions += " " + actions; if (sub) { if (HUB.keepSub && !HUB.sub) HUB.sub = sub; else body = `<p class="muted" style="margin:0;font-size:.88rem">${sub}</p>` + body; } return body; }
   return `${crumbs.length ? `<nav class="crumbs" aria-label="${T("Breadcrumb")}">${crumbs.map(([l, r]) => r ? `<a ${goA(r)}>${T(l)}</a>` : `<span>${T(l)}</span>`).join('<span aria-hidden="true">/</span>')}</nav>` : ""}
   <div class="page-head"><div><h1>${title}</h1>${sub ? `<div class="muted" style="margin-top:2px">${sub}</div>` : ""}</div><div class="actions">${actions}</div></div>${body}`;
 }
@@ -777,6 +786,10 @@ const kpi = (label, value, delta, up = true, help = "") => `<div class="card kpi
 function tabs(id, list, def) {
   const cur = S.tab[id] || def || list[0][0];
   return { cur, html: `<div class="tabs" role="tablist">${list.map(([k, l]) => `<button role="tab" aria-selected="${k === cur}" class="${k === cur ? "on" : ""}" data-act="tab" data-tab="${id}" data-k="${k}">${T(l)}</button>`).join("")}</div>` };
+}
+function segTabs(id, list, def) {
+  const cur = S.tab[id] || def || list[0][0];
+  return { cur, html: `<div class="seg" role="tablist">${list.map(([k, l]) => `<button role="tab" aria-selected="${k === cur}" class="${k === cur ? "on" : ""}" data-act="tab" data-tab="${id}" data-k="${k}">${T(l)}</button>`).join("")}</div>` };
 }
 const field = (label, input, hint = "", cls = "") => `<label class="f ${cls}">${T(label)}${input}${hint ? `<span class="hint">${T(hint)}</span>` : ""}</label>`;
 const inp = (v = "", attrs = "") => `<input class="in" value="${esc(v)}" ${attrs}>`;
@@ -910,15 +923,9 @@ function drawWarp() {
 }
 /* ================= APP SHELL ================= */
 const NAV = [
-  ["Overview", [["dashboard", "Dashboard", "home", "dashboard.view"], ["tasks", "Tasks", "check", "dashboard.view"], ["notifications", "Notifications", "bell", "dashboard.view"]]],
-  ["Stock", [["inv-materials", "Raw materials", "layers", "inventory.view"], ["inv-lots", "Lots", "box", "inventory.view"], ["inv-sarees", "Finished sarees", "saree", "inventory.view"], ["inv-damaged", "Damaged stock", "alert", "inventory.view"], ["inv-movements", "Stock movements", "move", "inventory.view"], ["purchases", "Purchases", "cart", "purchases.view"], ["inv-opening", "Opening stock", "history", "admin"]]],
-  ["Designs", [["designs", "Designs", "palette", "designs.view"]]],
-  ["Production", [["dyeing", "Dyeing", "drop", "dyeing.manage"], ["weaving", "Weaving", "loom", "weaving.manage"], ["restoration", "Damage restoration", "needle", "restoration.manage"]]],
-  ["Sales", [["orders", "Orders", "list", "orders.view"], ["packing", "Packing", "pack", "packaging.manage"], ["dispatches", "Dispatch", "truck", "dispatch.manage"], ["invoices", "Invoices", "receipt", "invoices.manage"], ["payments", "Customer payments", "rupee", "customer_payments.manage"], ["offer-sales", "Offer sales", "tag", "offer_sales.manage"]]],
-  ["People", [["workers", "Workers", "users", "workers.view"], ["customers", "Customers", "store", "customers.view"], ["suppliers", "Suppliers", "cart", "suppliers.view"]]],
-  ["Money", [["worker-payments", "Worker payments", "wallet", "worker_payments.view"], ["settlements", "Settlements", "hand", "worker_payments.view"], ["advances", "Advances", "rupee", "advances.manage"], ["fines", "Fines", "gavel", "worker_payments.view"], ["expenses", "Expenses", "receipt", "expenses.manage"]]],
-  ["Reports", [["rep-pnl", "Profit & loss", "chart", "reports.financial"], ["rep-cost", "Cost of production", "pie", "reports.financial"], ["rep-cash", "Cash flow", "rupee", "reports.financial"], ["rep-stats", "Design, customer & weaver stats", "chart", "reports.financial"], ["rep-stock", "Stock report", "layers", "reports.view"], ["rep-recv", "Receivables", "receipt", "reports.financial"]]],
-  ["Admin", [["users", "Users & permissions", "key", "admin"], ["payroll", "Payroll", "wallet", "admin"], ["attendance", "Attendance", "cal", "admin"], ["employees", "Employees & salaries", "user", "admin"], ["audits", "Stock audits", "scan", "admin"], ["activity", "Activity log", "history", "admin"], ["settings", "Settings", "gear", "admin"]]]
+  ["Run the business", [["home", "Home", "home", "dashboard.view"], ["stock", "Stock", "box", "inventory.view"], ["designs", "Designs", "palette", "designs.view"], ["production", "Production", "loom", "weaving.manage"], ["sales", "Sales", "cart", "orders.view"], ["people", "People", "users", "workers.view"], ["money", "Money", "wallet", "worker_payments.view"]]],
+  ["Review", [["reports", "Reports", "chart", "reports.view"]]],
+  ["Owner only", [["payroll", "Payroll", "cal", "admin"], ["admin", "Admin", "gear", "admin"]]]
 ];
 const allowed = p => p === "admin" ? isAdmin() : can(p);
 const unread = () => S.notifs.filter(x => x.unread).length;
@@ -943,7 +950,7 @@ function shell(inner) {
   <main class="content" id="main"><div class="content-inner">${inner}</div></main></div>`;
 }
 function activeNav(r) {
-  const map = { lot: "inv-lots", piece: "inv-sarees", design: "designs", "design-new": "designs", "dye-job": "dyeing", "dye-new": "dyeing", "weaving-job": "weaving", "weave-new": "weaving", "weave-receive": "weaving", "rest-job": "restoration", order: "orders", "order-new": "orders", dispatch: "dispatches", invoice: "invoices", worker: "workers", customer: "customers", supplier: "suppliers", "settlement-new": "settlements", settlement: "settlements", "payroll-run": "payroll", payslip: "payroll", "audit-new": "audits", "audit-variance": "audits", "user-new": "users", purchase: "purchases", "purchase-new": "purchases", "inv-adjust": "inv-lots" };
+  const map = { lot: "stock", piece: "stock", "inv-adjust": "stock", "inv-opening": "stock", purchase: "stock", "purchase-new": "stock", design: "designs", "design-new": "designs", "dye-job": "production", "dye-new": "production", "weaving-job": "production", "weave-new": "production", "weave-receive": "production", "rest-job": "production", order: "sales", "order-new": "sales", dispatch: "sales", invoice: "sales", worker: "people", customer: "people", supplier: "people", "settlement-new": "money", "payroll-run": "payroll", payslip: "payroll", "audit-new": "admin", "audit-variance": "admin", "user-new": "admin", screens: "" };
   return S.route === r || map[S.route] === r;
 }
 const CODE_INDEX = () => [
@@ -1015,7 +1022,7 @@ function pgDashboard() {
 
 /* ================= INVENTORY ================= */
 function pgMaterials() {
-  return page({ title: T("Raw materials"), crumbs: [["Stock"], ["Raw materials"]], actions: can("purchases.manage") ? btn(ico("plus") + T("New purchase"), goA("purchase-new"), "primary main") : "",
+  return page({ title: T("Raw materials"), crumbs: [["Stock"], ["Raw materials"]], actions: `${isAdmin() ? btn(ico("history") + T("Opening stock"), goA("inv-opening")) : ""} ${can("purchases.manage") ? btn(ico("plus") + T("New purchase"), goA("purchase-new"), "primary main") : ""}`,
     body: table([
       { l: "Material", r: m => `<b>${E(m.type)}</b> <span class="muted mono">${PREFIX}-${m.id}</span>` },
       { l: "Raw (godown)", r: m => m.unit === "g" ? g(m.raw) : n(m.raw) + " " + T("pcs"), cls: "r num" },
@@ -1438,7 +1445,7 @@ function attGrid(ids, days = 21) {
 }
 function pgAttendance() {
   const ids = WORKERS.filter(w => w.emp).map(w => w.id);
-  const tb = tabs("att", [["month", "Monthly grid"], ["day", "Daily entry"], ["holidays", "Holidays"]]);
+  const tb = segTabs("att", [["month", "Monthly grid"], ["day", "Daily entry"], ["holidays", "Holidays"]]);
   return page({ title: T("Attendance"), sub: T("October") + " 2026", crumbs: [["Admin"], ["Attendance"]], actions: btn(T("Mark all present for unmarked working days"), 'data-act="bulkatt"', "primary main"),
     body: tb.html + (tb.cur === "month" ? `<div class="legend">${[["P", "Present"], ["A", "Absent"], ["H", "Half day"], ["L", "Paid leave"], ["O", "Holiday"], ["W", "Weekly off"]].map(([k, l]) => `<span><b class="a-${k}" style="padding:0 5px;border-radius:3px">${k}</b> ${T(l)}</span>`).join("")}<span>${T("Tap a cell to change it")}</span></div>${attGrid(ids, 31)}` : "") +
     (tb.cur === "day" ? `<div class="filters">${inp("2026-10-20", 'type="date" id="ad-d" style="max-width:200px"')}</div>` + table([{ l: "Employee", r: id => W(id).name }, { l: "Status", r: () => sel(["present", "absent", "half_day", "paid_leave", "holiday", "weekly_off"].map(x => [x, T(x.replace("_", " ").replace(/^./, c => c.toUpperCase()))]), "present") }, { l: "Time in", r: () => inp("09:30", 'type="time"') }, { l: "Time out", r: (id) => inp(id === "W0042" ? "20:15" : "18:30", 'type="time"') }, { l: "OT hours", r: id => inp(id === "W0042" ? "1.75" : "0", 'inputmode="decimal"') }], ids) : "") +
@@ -1473,7 +1480,7 @@ function pgActivity() {
 
 /* ---------- settings ---------- */
 function pgSettings() {
-  const tb = tabs("settings", [["business", "Business"], ["branding", "Branding"], ["tax", "Tax & invoices"], ["security", "Sessions & security"], ["notif", "Notification rules"], ["payroll", "Payroll rules"], ["export", "Data export"], ["danger", "Danger zone"]], "business");
+  const tb = segTabs("settings", [["business", "Business"], ["branding", "Branding"], ["tax", "Tax & invoices"], ["security", "Sessions & security"], ["notif", "Notification rules"], ["payroll", "Payroll rules"], ["export", "Data export"], ["danger", "Danger zone"]], "business");
   let body = "";
   if (tb.cur === "business") body = `<div class="card"><div class="form-grid">${field("Business name", inp(S.brand.name, 'id="sb-n"'))}${field("Code prefix", inp("KSS", 'id="sb-p" disabled'), "Locked after the first code was issued.")}${field("Address", inp("12, Gandhi Road, Kanchipuram 631501", 'id="sb-a"'), "", "span2")}${field("Timezone", sel(["Asia/Kolkata"], "Asia/Kolkata", 'id="sb-tz"'))}${field("Financial year starts", sel(["April", "January"], "April", 'id="sb-fy"'))}</div></div>`;
   if (tb.cur === "branding") body = brandingEditor();
@@ -1605,13 +1612,75 @@ function render() {
   drawWarp();
 }
 function go(route, id) {
-  if (route === "audit-count" || route === "audit-home") { S.route = route; }
+  if (ALIAS[route]) { const [h, t] = ALIAS[route]; S.tab[h] = t; route = h === "home" && t === "overview" ? "home" : route; S.route = h; }
   else S.route = route;
   S.params = { id }; S.drawer = false; S.pop = null; S.searchQ = ""; S.searchOpen = false;
   if (route === "weave-new") S.weaveStep = 1; if (route === "settlement-new") S.settle = 1; if (route === "audit-new") S.auditStep = 1; if (route === "user-new") S.perms = null;
   try { if (/^[a-z-]+$/.test(route)) history.replaceState(null, "", "#" + route); } catch (e) {}
   render(); window.scrollTo(0, 0);
 }
+/* ================= HUBS: one page per area, related screens as tabs ================= */
+const section = (title, html) => `<h2 style="margin-top:10px">${T(title)}</h2>${html}`;
+const both = (...fns) => () => { const pb = periodBar(); let seen = false; return fns.map(([t, f]) => { let h = f(); if (h.includes(pb)) { if (seen) h = h.replace(pb, ""); seen = true; } return t ? section(t, h) : h; }).join(""); };
+function repProduction() {
+  return pgCost() + section("By weaver", table([{ l: "Weaver", r: r => r[0] }, { l: "Sarees", r: r => r[1], cls: "r num" }, { l: "Damage %", r: r => `<span class="${r[2] > 5 ? "down" : ""}">${r[2]}%</span>`, cls: "r num" }, { l: "Wastage %", r: r => r[3] + "%", cls: "r num" }, { l: "Fines", r: r => money(r[4]), cls: "r num" }], [["Murugan S", 16, 0, 2.4, 0], ["Selvi K", 14, 14.3, 3.1, 2000], ["Ramesh P", 18, 5.6, 2.8, 500]]));
+}
+function repSales() {
+  return periodBar() + `<div class="grid g2"><div class="card"><h2>${T("Top designs by revenue")}</h2>${hbars(DESIGNS.map((d, i) => [dname(d), [312000, 228000, 186000, 128000, 94000, 64400][i]]), v => money(v))}</div><div class="card"><h2>${T("Margin by design")}</h2>${hbars(DESIGNS.map((d, i) => [dname(d), [38.6, 35.2, 31.0, 41.8, 28.4, 33.9][i]]), v => v + "%", "var(--chart-2)")}</div></div>
+  <div class="card"><h2>${T("Top customers")}</h2>${hbars(CUSTOMERS.map((c, i) => [c.name, [412000, 288000, 198500, 113900][i]]), v => money(v))}</div>` + section("Receivables", pgRecv());
+}
+const HUBS = {
+  home: { title: () => `${T("Good morning")}, ${S.role === "admin" ? "Hari" : "Senthil"}`, tabs: [["overview", "Overview", "dashboard.view", () => flowStrip() + pgDashboard()], ["tasks", "Tasks", "dashboard.view", pgTasks], ["notifications", "Notifications", "dashboard.view", pgNotifications]] },
+  stock: { title: "Stock", tabs: [["sarees", "Sarees", "inventory.view", pgSarees], ["damaged", "Damaged", "inventory.view", pgDamaged], ["raw", "Raw materials & lots", "inventory.view", both([null, pgMaterials], ["Lots", pgLots])], ["purchases", "Purchases", "purchases.view", pgPurchases], ["movements", "Movements", "inventory.view", pgMovements]] },
+  production: { title: "Production", tabs: [["weaving", "Weaving", "weaving.manage", pgWeaving], ["dyeing", "Dyeing", "dyeing.manage", pgDyeing], ["restoration", "Restoration", "restoration.manage", pgRestoration]] },
+  sales: { title: "Sales", tabs: [["orders", "Orders", "orders.view", pgOrders], ["dispatch", "Packing & dispatch", "dispatch.manage", both(["Dispatch board", pgDispatches], ["Ready to pack", pgPacking])], ["billing", "Invoices & payments", "invoices.manage", both([null, pgInvoices], ["Payments received", pgPayments])], ["offer", "Offer sales", "offer_sales.manage", pgOfferSales]] },
+  people: { title: "People", tabs: [["workers", "Workers", "workers.view", pgWorkers], ["customers", "Customers", "customers.view", pgCustomers], ["suppliers", "Suppliers", "suppliers.view", pgSuppliers]] },
+  money: { title: "Money", tabs: [["pay", "Worker payments", "worker_payments.view", both([null, pgWorkerPayments], ["Settlements", pgSettlements])], ["advfines", "Advances & fines", "advances.manage", both([null, pgAdvances], ["Fines", pgFines])], ["expenses", "Expenses", "expenses.manage", pgExpenses]] },
+  reports: { title: "Reports", tabs: [["pnl", "Profit & cash", "reports.financial", both([null, pgPnl], ["Cash flow", pgCash])], ["production", "Production", "reports.financial", repProduction], ["sales", "Sales & receivables", "reports.financial", repSales], ["stock", "Stock", "reports.view", pgStock]] },
+  payroll: { title: "Payroll", tabs: [["runs", "Monthly salary", "admin", pgPayroll], ["attendance", "Attendance", "admin", pgAttendance], ["employees", "Employees", "admin", pgEmployees]] },
+  admin: { title: "Admin", tabs: [["users", "Team & access", "admin", pgUsers], ["audits", "Stock audits", "admin", pgAudits], ["activity", "Activity log", "admin", pgActivity], ["settings", "Settings", "admin", pgSettings]] }
+};
+const ALIAS = {
+  dashboard: ["home", "overview"], tasks: ["home", "tasks"], notifications: ["home", "notifications"],
+  "inv-sarees": ["stock", "sarees"], "inv-damaged": ["stock", "damaged"], "inv-materials": ["stock", "raw"], "inv-lots": ["stock", "raw"], purchases: ["stock", "purchases"], "inv-movements": ["stock", "movements"],
+  weaving: ["production", "weaving"], dyeing: ["production", "dyeing"], restoration: ["production", "restoration"],
+  orders: ["sales", "orders"], packing: ["sales", "dispatch"], dispatches: ["sales", "dispatch"], invoices: ["sales", "billing"], payments: ["sales", "billing"], "offer-sales": ["sales", "offer"],
+  workers: ["people", "workers"], customers: ["people", "customers"], suppliers: ["people", "suppliers"],
+  "worker-payments": ["money", "pay"], settlements: ["money", "pay"], advances: ["money", "advfines"], fines: ["money", "advfines"], expenses: ["money", "expenses"],
+  "rep-pnl": ["reports", "pnl"], "rep-cash": ["reports", "pnl"], "rep-cost": ["reports", "production"], "rep-stats": ["reports", "sales"], "rep-recv": ["reports", "sales"], "rep-stock": ["reports", "stock"],
+  payroll: ["payroll", "runs"], attendance: ["payroll", "attendance"], employees: ["payroll", "employees"],
+  users: ["admin", "users"], audits: ["admin", "audits"], activity: ["admin", "activity"], settings: ["admin", "settings"]
+};
+function hub(key) {
+  const h = HUBS[key]; const vis = h.tabs.filter(t => allowed(t[2]));
+  if (!vis.length) return notFound();
+  if (!vis.some(t => t[0] === S.tab[key])) S.tab[key] = vis[0][0];
+  const tb = tabs(key, vis.map(t => [t[0], t[1]]));
+  HUB = { actions: "", sub: "", keepSub: key === "home" };
+  let body;
+  try { body = vis.find(t => t[0] === tb.cur)[3](); } finally { var cap = HUB; HUB = null; }
+  return page({ title: typeof h.title === "function" ? h.title() : T(h.title), sub: cap.sub, actions: cap.actions, body: (vis.length > 1 ? tb.html : "") + body });
+}
+Object.keys(HUBS).forEach(k => { PAGES[k] = [() => hub(k), HUBS[k].tabs[0][2], typeof HUBS[k].title === "string" ? HUBS[k].title : "Home"]; });
+PAGES.reports[1] = "reports.view";
+PAGES.designs[2] = "Designs";
+
+/* the business in one line: where work is waiting right now */
+function flowStrip() {
+  const st = [["Buy", "cart", "1 " + T("draft"), "purchases", "purchases.view"], ["Dye", "drop", "3 " + T("active"), "dyeing", "dyeing.manage"], ["Weave", "loom", "4 " + T("active"), "weaving", "weaving.manage"], ["QC & stock", "saree", "62 " + T("in stock"), "inv-sarees", "inventory.view"], ["Orders", "list", "3 " + T("open"), "orders", "orders.view"], ["Pack & dispatch", "truck", "2 " + T("on the road"), "dispatches", "dispatch.manage"], ["Get paid", "rupee", "2 " + T("overdue"), "invoices", "invoices.manage"]].filter(s => allowed(s[4]));
+  return `<div class="card"><div class="card-h"><h2>${T("How work flows")}</h2><span class="muted" style="font-size:.84rem">${T("Tap a step to open it")}</span></div>
+  <div class="flow">${st.map(([l, ic, c, r], i) => `${i ? `<span class="flow-arrow" aria-hidden="true">→</span>` : ""}<a class="flow-step" ${goA(r)} href="#${r}">${ico(ic)}<b>${T(l)}</b><span class="muted">${c}</span></a>`).join("")}</div></div>`;
+}
+
+function pgScreens() {
+  const det = { stock: ["lot", "piece", "inv-adjust", "inv-opening", "purchase", "purchase-new"], designs: ["design", "design-new"], production: ["weaving-job", "weave-new", "weave-receive", "dye-job", "dye-new", "rest-job"], sales: ["order", "order-new", "dispatch", "invoice"], people: ["worker", "customer"], money: ["settlement-new"], payroll: ["payroll-run", "payslip"], admin: ["user-new", "audit-new", "audit-variance"], home: ["account"] };
+  const card = (k, title, tabsL) => `<div class="card"><h3>${T(title)}</h3>${tabsL.map(([t, l]) => `<a data-act="hubtab" data-k="${k}" data-v="${t}">${T(l)}</a>`).join("")}${(det[k] || []).map(r => `<a ${goA(r)} class="muted">↳ ${T(PAGES[r][2])}</a>`).join("")}</div>`;
+  return page({ title: T("All screens index"), sub: T("Every screen in the prototype. Switch role in the Prototype menu to see what each role gets."),
+    body: `<div class="screen-index"><div class="card"><h3>${T("Public")}</h3>${Object.keys(PUBLIC).map(r => `<a ${goA(r)}>${T({ login: "Sign-in", "login-branded": "Vendor login", register: "Sign-up", invite: "Invite" }[r])}</a>`).join("")}</div>
+    <div class="card"><h3>${T("Auditor portal")}</h3><a data-act="asrole" data-k="auditor">${T("My audits")}</a><a data-act="auditcount">${T("Counting screen")}</a></div>
+    ${NAV.flatMap(([, items]) => items).map(([k, l]) => HUBS[k] ? card(k, l, HUBS[k].tabs) : card(k, l, []).replace("</h3>", `</h3><a ${goA(k)}>${T(l)}</a>`)).join("")}</div>` });
+}
+PAGES.screens = [pgScreens, "dashboard.view", "All screens index"];
 /* ================= EVENTS ================= */
 const CONFIRMS = {
   dyecomplete: () => ({ title: T("Complete dye job DYE-2600034?"), lines: [[T("Issued"), g(9600)], [T("Returned"), g(4300)], [T("Written off as dye loss"), g(5300)], [T("Dyer fee"), money(14400), 1]], note: T("Loss is above 8%. A note is required."), okLabel: T("Complete job"), okAct: "ok", msg: "Dye job completed" }),
@@ -1623,6 +1692,7 @@ const CONFIRMS = {
 };
 let pendingConfirm = null;
 const ACT = {
+  hubtab: el => { S.tab[el.dataset.k] = el.dataset.v; go(el.dataset.k); },
   lang: el => { S.lang = el.dataset.k; render(); toast(S.lang === "ta" ? "மொழி தமிழுக்கு மாற்றப்பட்டது" : "Language set to English"); },
   langsel: el => { S.lang = el.value; render(); },
   drawer: () => { S.drawer = !S.drawer; render(); },
@@ -1698,7 +1768,7 @@ addEventListener("resize", () => { if (document.getElementById("warp")) drawWarp
   try { if (matchMedia("(prefers-color-scheme: dark)").matches) {} } catch (e) {}
   const h = (location.hash || "").slice(1);
   if (PUBLIC[h]) S.route = h;
-  else if (PAGES[h]) { S.authed = true; S.route = h; }
+  else if (PAGES[h] || ALIAS[h]) { S.authed = true; go(h); return; }
   render();
 })();
 </script>
